@@ -58,15 +58,13 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static volatile uint32_t push_counter = 0UL;
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	static volatile uint32_t push_counter = 0UL;
-
 	if (GPIO_PIN_13 == GPIO_Pin)
 	{
 		push_counter++;
-		printf("counter = %lu\n", push_counter);
 	}
 }
 
@@ -116,7 +114,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  static uint32_t prev_push_counter = 0UL;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -146,6 +144,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if (prev_push_counter != push_counter)
+    {
+      printf("counter = %lu\n", push_counter);
+      prev_push_counter = push_counter;
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

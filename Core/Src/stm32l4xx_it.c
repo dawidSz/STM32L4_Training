@@ -183,7 +183,13 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
-  
+  static int clk_div;
+  clk_div++;
+
+  if (clk_div >= 100) {
+	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	clk_div = 0;
+  }
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
