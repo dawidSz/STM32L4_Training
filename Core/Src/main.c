@@ -58,50 +58,39 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-static volatile uint32_t push_counter = 0UL;
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+#define LINE_MAX_LENGTH 80
+
+static char line_buffer[LINE_MAX_LENGTH + 1];
+static uint32_t line_length;
+
+void line_append(uint8_t value)
 {
-	if (GPIO_PIN_13 == GPIO_Pin)
-	{
-		push_counter++;
-	}
+  if (value == '\r' || value == '\n') {
+    if (line_length > 0) {
+      line_buffer[line_length] = '\0';
+      if (strcmp(line_buffer, "on") == 0) {
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+      } else if (strcmp(line_buffer, "off") == 0) {
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+      }
+      line_length = 0;
+    }
+  }
+  else {
+    if (line_length >= LINE_MAX_LENGTH) {
+      line_length = 0;
+    }
+    line_buffer[line_length++] = value;
+  }
 }
 
-void HAL_Delay(uint32_t Delay)
-{
-  uint32_t tickstart = HAL_GetTick();
-  uint32_t wait = Delay;
-  /* Add a period to guaranty minimum wait */
-  if (wait < HAL_MAX_DELAY)
-  {
-    wait += (uint32_t)uwTickFreq;
-  }
-  while ((HAL_GetTick() - tickstart) < wait)
-  {
-	  __WFI();
-  }
-}
+uint8_t uart_rx_buffer;
 
-int __io_putchar(int ch)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  if (ch == '\n') {
-    __io_putchar('\r');
-  }
-  HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
-  return 1;
-}
-
-bool is_button_pressed(void)
-{
-  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET)
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+	line_append(uart_rx_buffer);
+	HAL_UART_Receive_IT(&huart2, &uart_rx_buffer, 1);
 }
 
 /* USER CODE END 0 */
@@ -114,7 +103,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  static uint32_t prev_push_counter = 0UL;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -138,17 +126,15 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_UART_Receive_IT(&huart2, &uart_rx_buffer, 1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    if (prev_push_counter != push_counter)
-    {
-      printf("counter = %lu\n", push_counter);
-      prev_push_counter = push_counter;
-    }
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -254,17 +240,10 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA5 */
   GPIO_InitStruct.Pin = GPIO_PIN_5;
@@ -272,10 +251,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
