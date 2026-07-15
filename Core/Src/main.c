@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,12 +59,14 @@ static void MX_TIM3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+
+float calc_pwm(float val)
 {
-  if (htim == &htim3) {
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-  }
+    const float k = 0.13f;
+    const float x0 = 70.0f;
+    return 10000.0f / (1.0f + exp(-k * (val - x0)));
 }
+
 /* USER CODE END 0 */
 
 /**
@@ -104,9 +107,19 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  int counter = 0;
+
   while (1)
   {
-    
+	float r = 50 * (1.0f + sin(counter / 100.0f));
+	float g = 50 * (1.0f + sin(1.5f * counter / 100.0f));
+	float b = 50 * (1.0f + sin(2.0f * counter / 100.0f));
+	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, calc_pwm(b));
+	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, calc_pwm(g));
+	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, calc_pwm(r));
+	HAL_Delay(10);
+	counter++;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -210,7 +223,7 @@ static void MX_TIM3_Init(void)
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 50;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
