@@ -94,6 +94,14 @@ void lcd_put_pixel(int x, int y, uint16_t color)
   lcd_fill_box(x, y, 1, 1, color);
 }
 
+void lcd_draw_image(int x, int y, int width, int height, const uint8_t* data)
+{
+	lcd_set_window(x, y, width, height);
+	lcd_cmd(ST7735S_RAMWR);
+	for (int i = 0; i < width * height * 2; i++)
+		lcd_data(data[i]);
+}
+
 static void lcd_send(uint16_t value)
 {
 	if (value & 0x100) {
