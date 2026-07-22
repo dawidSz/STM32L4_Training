@@ -18,17 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "spi.h"
+#include "i2c.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <string.h>
 #include <stdio.h>
-#include <stdbool.h>
-#include "math.h"
-#include "lcd.h"
-#include "forbot_logo.c"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,7 +56,14 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+int __io_putchar(int ch)
+{
+  if (ch == '\n') {
+    __io_putchar('\r');
+  }
+  HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
+  return 1;
+}
 /* USER CODE END 0 */
 
 /**
@@ -91,25 +94,17 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI2_Init();
+  MX_USART2_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  lcd_init();
+  uint8_t test = 0x5A;
+  HAL_I2C_Mem_Write(&hi2c1, 0xA0, 0x10, 1, &test, sizeof(test), HAL_MAX_DELAY);
 
-  lcd_fill_box(0, 0, 160, 16, RED);
-  lcd_fill_box(0, 16, 160, 16, GREEN);
-  lcd_fill_box(0, 32, 160, 16, BLUE);
-  lcd_fill_box(0, 48, 160, 16, YELLOW);
-  lcd_fill_box(0, 64, 160, 16, MAGENTA);
-  lcd_fill_box(0, 80, 160, 16, CYAN);
-  lcd_fill_box(0, 96, 160, 16, WHITE);
-  lcd_fill_box(0, 112, 160, 16, BLACK);
+  HAL_Delay(5);
+  uint8_t result = 0;
+  HAL_I2C_Mem_Read(&hi2c1, 0xA0, 0x10, 1, &result, sizeof(result), HAL_MAX_DELAY);
 
-  for (int i = 0; i < 128; i++) {
-    lcd_put_pixel(i,  i, RED);
-    lcd_put_pixel(127 - i,  i, RED);
-  }
-
-  lcd_draw_image(35, 20, 100, 80, forbot_logo);
+  printf("Saved value %d\n", result);
   /* USER CODE END 2 */
 
   /* Infinite loop */
