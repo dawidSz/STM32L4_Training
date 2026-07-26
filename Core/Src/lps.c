@@ -19,6 +19,8 @@
 #define LPS25HB_PRESS_OUT_H 	0x2A
 #define LPS25HB_TEMP_OUT_L 		0x2B
 #define LPS25HB_TEMP_OUT_H 		0x2C
+#define LPS25HB_RPDS_L 			0x1A
+#define LPS25HB_RPDS_H 			0x1B
 
 #define LPS25HB_CTRL_REG1_PD 	0x80
 #define LPS25HB_CTRL_REG1_ODR2 	0x40
@@ -27,10 +29,8 @@
 
 static uint8_t lps_read_reg(uint8_t reg);
 static void lps_write_reg(uint8_t reg, uint8_t value);
-static float lps_get_temperature_celsius(void);
-static float lps_get_pressure_pa(void);
 
-void lps_Init(void)
+void lps_init(void)
 {
 	uint8_t who_am_i = lps_read_reg(LPS25HB_WHO_AM_I);
 
@@ -49,11 +49,10 @@ void lps_Init(void)
 	lps_write_reg(LPS25HB_CTRL_REG1, LPS25HB_CTRL_REG1_PD | LPS25HB_CTRL_REG1_ODR2);
 	HAL_Delay(100U);
 
-	printf("T = %f\n deg. Celsius", lps_get_temperature_celsius());
-	printf("P = %f\n hPa", lps_get_pressure_pa());
+
 }
 
-static float lps_get_temperature_celsius(void)
+float lps_get_temperature_celsius(void)
 {
 	int16_t temp = 0;
 
@@ -70,7 +69,7 @@ static float lps_get_temperature_celsius(void)
 	return  temp / 100.0f;
 }
 
-static float lps_get_pressure_pa(void)
+float lps_get_pressure_pa(void)
 {
 	int32_t pressure = 0;
 
@@ -85,6 +84,12 @@ static float lps_get_pressure_pa(void)
 	);
 
 	return pressure / 4096.0f;
+}
+
+void lps_set_calib(uint16_t value)
+{
+	lps_write_reg(LPS25HB_RPDS_L, value);
+	lps_write_reg(LPS25HB_RPDS_H, value >> 8);
 }
 
 static void lps_write_reg(uint8_t reg, uint8_t value)

@@ -25,6 +25,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "lps.h"
+#include <stdio.h>
+#include <math.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -99,7 +102,7 @@ int main(void)
   MX_I2C1_Init();
 
   /* USER CODE BEGIN 2 */
-  lps_Init();
+  lps_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -107,6 +110,9 @@ int main(void)
 
   while (1)
   {
+    printf("T = %.1f deg. Celsius\n", lps_get_temperature_celsius());
+	printf("P = %.1f hPa\n\n", lps_get_pressure_pa());
+    HAL_Delay(1000U);
 
     /* USER CODE END WHILE */
 
