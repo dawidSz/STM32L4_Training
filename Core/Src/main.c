@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -58,6 +59,13 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static float calc_sound_speed(void)
+{
+	  uint32_t adc_value = HAL_ADC_GetValue(&hadc1);
+	  float temp = adc_value * 330.0f / 4096.0f;
+	  return 331.8f + 0.6f * temp;
+}
+
 int __io_putchar(int ch)
 {
   if (ch == '\n') {
@@ -74,7 +82,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	} else if (htim == &htim2) {
 		uint32_t start = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
 		uint32_t stop = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_2);
-		seg7_show((stop - start) / 58);
+		seg7_show((stop - start) * calc_sound_speed() / 20000.0f);
 	}
 }
 /* USER CODE END 0 */
@@ -110,12 +118,16 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   MX_TIM6_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim6);
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+
+  HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+  HAL_ADC_Start(&hadc1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -123,7 +135,6 @@ int main(void)
 
   while (1)
   {
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
