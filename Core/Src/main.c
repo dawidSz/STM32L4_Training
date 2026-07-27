@@ -18,15 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "i2c.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "lps.h"
 #include <stdio.h>
-#include <math.h>
 
 /* USER CODE END Includes */
 
@@ -99,10 +97,12 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_I2C1_Init();
-
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  lps_init();
+  HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+
+  HAL_Delay(1000);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -110,9 +110,9 @@ int main(void)
 
   while (1)
   {
-    printf("T = %.1f deg. Celsius\n", lps_get_temperature_celsius());
-	printf("P = %.1f hPa\n\n", lps_get_pressure_pa());
-    HAL_Delay(1000U);
+	  uint32_t value = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
+	  printf("%.1f cm\n", (value - 2240) / 58.0f);
+	  HAL_Delay(1000);
 
     /* USER CODE END WHILE */
 
