@@ -18,7 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "adc.h"
+#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -26,7 +26,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-#include "seg7.h"
+#include <stdlib.h>
+#include "ws2812b.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,13 +60,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-static float calc_sound_speed(void)
-{
-	  uint32_t adc_value = HAL_ADC_GetValue(&hadc1);
-	  float temp = adc_value * 330.0f / 4096.0f;
-	  return 331.8f + 0.6f * temp;
-}
-
 int __io_putchar(int ch)
 {
   if (ch == '\n') {
@@ -73,17 +67,6 @@ int __io_putchar(int ch)
   }
   HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
   return 1;
-}
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-	if (htim == &htim6) {
-		seg7_update();
-	} else if (htim == &htim2) {
-		uint32_t start = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
-		uint32_t stop = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_2);
-		seg7_show((stop - start) * calc_sound_speed() / 20000.0f);
-	}
 }
 /* USER CODE END 0 */
 
@@ -115,28 +98,40 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
-  MX_TIM2_Init();
-  MX_TIM6_Init();
-  MX_ADC1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim6);
-  HAL_TIM_Base_Start_IT(&htim2);
-  HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_1);
-  HAL_TIM_IC_Start(&htim2, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
 
-  HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
-  HAL_ADC_Start(&hadc1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  ws2812b_init();
 
   while (1)
   {
-    /* USER CODE END WHILE */
+	  ws2812b_set_color(0, 255, 0, 0);
+	  ws2812b_set_color(1, 0, 255, 0);
+	  ws2812b_set_color(2, 0, 0, 255);
+	  ws2812b_set_color(3, 255, 0, 0);
+	  ws2812b_set_color(4, 0, 255, 0);
+	  ws2812b_set_color(5, 0, 0, 255);
+	  ws2812b_set_color(6, 255, 0, 0);
+	  ws2812b_update();
+	  HAL_Delay(1000);
 
+	  ws2812b_set_color(1, 255, 0, 0);
+	  ws2812b_set_color(2, 0, 255, 0);
+	  ws2812b_set_color(3, 0, 0, 255);
+	  ws2812b_set_color(4, 255, 0, 0);
+	  ws2812b_set_color(5, 0, 255, 0);
+	  ws2812b_set_color(6, 0, 0, 255);
+	  ws2812b_set_color(0, 255, 0, 0);
+	  ws2812b_update();
+	  HAL_Delay(1000);
+  }
+    /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
