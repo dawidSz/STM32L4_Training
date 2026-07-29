@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -27,18 +26,23 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <stdlib.h>
-#include "ws2812b.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef enum {
+	PULSE_9MS,
+	PULSE_4MS,
+	PULSE_2MS,
+	PULSE_LONG,
+	PULSE_SHORT,
+	PULSE_ERROR,
+} pulse_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-
+#define N_VAL 64
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,11 +59,81 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+static pulse_t calc_pulse(uint32_t time);
+static void process_pulse(pulse_t pulse);
+static int ir_read(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+volatile pulse_t pulses[N_VAL];
+int counter;
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+  uint32_t new_val;
+  if (htim == &htim2) {
+    switch (HAL_TIM_GetActiveChannel(&htim2)) {
+      case HAL_TIM_ACTIVE_CHANNEL_1:
+        new_val = calc_pulse(HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1));
+        process_pulse(new_val);
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+static pulse_t calc_pulse(uint32_t time)
+{
+	if (time < 250)
+		return PULSE_ERROR;
+	else if (time < 1200)
+		return PULSE_SHORT;
+	else if (time < 2000)
+		return PULSE_LONG;
+	else if (time < 3000)
+		return PULSE_2MS;
+	else if (time < 6000)
+		return PULSE_4MS;
+	else if (time < 12000)
+		return PULSE_9MS;
+	else
+		return PULSE_ERROR;
+}
+
+static volatile uint32_t received_value;
+static int received_bits;
+
+static void process_pulse(pulse_t pulse)
+{
+	if (received_bits >= 32)
+		return;
+	switch (pulse) {
+	case PULSE_SHORT:
+		received_value = received_value >> 1;
+		received_bits++;
+		break;
+	case PULSE_LONG:
+		received_value = (received_value >> 1) | 0x80000000;
+		received_bits++;
+		break;
+	default:
+		received_bits = 0;
+		break;
+	}
+}
+
+int ir_read(void)
+{
+	if (received_bits != 32)
+		return -1;
+	uint8_t value = received_value >> 16;
+	received_bits = 0;
+	return value;
+}
+
 int __io_putchar(int ch)
 {
   if (ch == '\n') {
@@ -98,40 +172,24 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_USART2_UART_Init();
-  MX_TIM3_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_TIM_Base_Start(&htim2);
+  HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  ws2812b_init();
 
   while (1)
   {
-	  ws2812b_set_color(0, 255, 0, 0);
-	  ws2812b_set_color(1, 0, 255, 0);
-	  ws2812b_set_color(2, 0, 0, 255);
-	  ws2812b_set_color(3, 255, 0, 0);
-	  ws2812b_set_color(4, 0, 255, 0);
-	  ws2812b_set_color(5, 0, 0, 255);
-	  ws2812b_set_color(6, 255, 0, 0);
-	  ws2812b_update();
-	  HAL_Delay(1000);
-
-	  ws2812b_set_color(1, 255, 0, 0);
-	  ws2812b_set_color(2, 0, 255, 0);
-	  ws2812b_set_color(3, 0, 0, 255);
-	  ws2812b_set_color(4, 255, 0, 0);
-	  ws2812b_set_color(5, 0, 255, 0);
-	  ws2812b_set_color(6, 0, 0, 255);
-	  ws2812b_set_color(0, 255, 0, 0);
-	  ws2812b_update();
-	  HAL_Delay(1000);
-  }
+	int value = ir_read();
+	if (value != -1) {
+	  printf("code = %02x\n", value);
+	}
     /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
