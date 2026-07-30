@@ -26,7 +26,6 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <stdlib.h>
-#include "ir.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,20 +57,95 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+void delay_us(uint32_t us)
 {
-  if (htim == &htim2)
-  {
-    switch (HAL_TIM_GetActiveChannel(&htim2))
-    {
-      case HAL_TIM_ACTIVE_CHANNEL_1:
-        ir_tim_interrupt();
-        break;
-      default:
-        break;
-    }
+  __HAL_TIM_SET_COUNTER(&htim6, 0);
+  while (__HAL_TIM_GET_COUNTER(&htim6) < us) {}
+}
+
+HAL_StatusTypeDef wire_reset(void)
+{
+  int rc;
+  HAL_GPIO_WritePin(DS_GPIO_Port, DS_Pin, GPIO_PIN_RESET);
+  delay_us(480);
+  HAL_GPIO_WritePin(DS_GPIO_Port, DS_Pin, GPIO_PIN_SET);
+  delay_us(70);
+  rc = HAL_GPIO_ReadPin(DS_GPIO_Port, DS_Pin);
+  delay_us(410);
+  if (rc == 0)
+    return HAL_OK;
+  else
+    return HAL_ERROR;
+}
+
+void write_bit(int value)
+{
+  if (value) {
+    HAL_GPIO_WritePin(DS_GPIO_Port, DS_Pin, GPIO_PIN_RESET);
+    delay_us(6);
+    HAL_GPIO_WritePin(DS_GPIO_Port, DS_Pin, GPIO_PIN_SET);
+    delay_us(64);
+  } else {
+    HAL_GPIO_WritePin(DS_GPIO_Port, DS_Pin, GPIO_PIN_RESET);
+    delay_us(60);
+    HAL_GPIO_WritePin(DS_GPIO_Port, DS_Pin, GPIO_PIN_SET);
+    delay_us(10);
   }
+}
+
+void wire_write(uint8_t byte)
+{
+  int i;
+  for (i = 0; i < 8; i++) {
+    write_bit(byte & 0x01);
+    byte >>= 1;
+  }
+}
+
+int read_bit(void)
+{
+  int rc;
+  HAL_GPIO_WritePin(DS_GPIO_Port, DS_Pin, GPIO_PIN_RESET);
+  delay_us(6);
+  HAL_GPIO_WritePin(DS_GPIO_Port, DS_Pin, GPIO_PIN_SET);
+  delay_us(9);
+  rc = HAL_GPIO_ReadPin(DS_GPIO_Port, DS_Pin);
+  delay_us(55);
+  return rc;
+}
+
+uint8_t wire_read(void)
+{
+  uint8_t value = 0;
+  int i;
+  for (i = 0; i < 8; i++) {
+    value >>= 1;
+    if (read_bit())
+      value |= 0x80;
+  }
+  return value;
+}
+
+uint8_t byte_crc(uint8_t crc, uint8_t byte)
+{
+  int i;
+  for (i = 0; i < 8; i++) {
+    uint8_t b = crc ^ byte;
+    crc >>= 1;
+    if (b & 0x01)
+      crc ^= 0x8c;
+    byte >>= 1;
+  }
+  return crc;
+}
+
+uint8_t wire_crc(const uint8_t* data, int len)
+{
+  int i;
+    uint8_t crc = 0;
+    for (i = 0; i < len; i++)
+      crc = byte_crc(crc, data[i]);
+    return crc;
 }
 
 int __io_putchar(int ch)
@@ -113,20 +187,33 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_TIM2_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start(&htim6);
+  wire_reset();
+  wire_write(0xcc);
+  wire_write(0x44);
+  HAL_Delay(750);
+  wire_reset();
+  wire_write(0xcc);
+  wire_write(0xbe);
+  int i;
+  uint8_t scratchpad[9];
+  for (i = 0; i < 9; i++)
+    scratchpad[i] = wire_read();
+  uint8_t crc = wire_crc(scratchpad, 8);
+  /* USER CODE END 2 */
+
+  /* USER CODE END 2 */
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  ir_init();
 
   while (1)
   {
-	int value = ir_read();
-	if (value != -1) {
-	  printf("code = %02x\n", value);
-	}
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
